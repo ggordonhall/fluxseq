@@ -1,27 +1,38 @@
+using Flux
+
 mutable struct Embedding
-    table::Array{Float64, 2}
+    table::TrackedArray
 end
 
 """
-Converts batch vectors from Float64 to Int32
-"""
-toint32(arr) = convert(Array{Array{Int32}}, arr)
-
-"""
 Construct an embedding table of dim:
-    `vocab size` * `embedding size`
+    `vocab size` * `hidden size`
 """
-embed(ntokens::Int, emsize::Int) = Embedding(randn(ntokens, emsize))
+Embedding(ntokens::Int, hiddensize::Int) = Embedding(param(randn(ntokens, hiddensize)))
 
 """
 Given a 2-dim matrix of indices, get the corresponding embedding vectors:
     `batch size` * `sequence length` * `embedding size`
 """
-lookup(Embedding, batch) = vcat(map(vect -> Embedding.table[vect, :], toint32(batch)))
+(m::Embedding)(batch) = vcat(map(vect -> m.table[vect, :], batch))
+
 
 """
-Replace updated weights in the embedding table.
+Get the max value and its index for each example in batch.
+   batch: `vocab size` * `batch size` :: TrackedArray
+
+   returns: `batch size` :: Array{Int}
 """
-function updatetable(Embedding, out::Array{Float64}, vect::Array{Int})
-    return Embedding.table[vect, :] = out
+function batchmax(batch::TrackedArray) 
+    last(findmax(batch.data, dims=1))
 end
+
+"""
+Convert array of CartesianIndex to array of integer indices:
+    cartarray :: Array{CartesianIndex{N}, N}
+
+    returns: `batch size` :: Array{Int}
+"""
+convertcartesian(cartarr) = last.(map(x -> x.I, cartarr))
+
+

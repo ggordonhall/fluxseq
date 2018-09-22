@@ -24,6 +24,11 @@ Return `vsize` tokens in vocabulary.
 getvocab(tokens, vsize) = ["<p>", "<s>", "<\\s>", "<unk>", truncvocab(tokens, vsize)...]
 
 """
+Converts batch vectors from Float64 to Int32
+"""
+toint32!(arr) = convert(Array{Array{Int32}}, arr)
+
+"""
 Limit vocab to the top `vsize` occuring tokens.
 """
 function truncvocab(tokens, vsize)
@@ -84,5 +89,5 @@ function batchpipe(sents, dict, seqlen, batchsize)
     # index and pad vectors
     vects = vectorise(sents, dict, seqlen)
     # batch and pad with `stopvect`
-    return batchseq(chunk(vects, batchsize), stopvect)
+    return toint32!(batchseq(chunk(vects, batchsize), stopvect))
 end

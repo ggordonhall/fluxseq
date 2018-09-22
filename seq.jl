@@ -8,17 +8,17 @@ include("preprocess.jl")
 include("embedding.jl")
 
 seqlen = 30
-batchsize = 16
-hiddensize = 64
-vsize = 5000
+batchsize = 1
+hiddensize = 2
+vsize = 5
 
 # Read translation files
-open("data/english_bible.txt") do file
+open("data/short_english_bible.txt") do file
     global insents, invocab
     insents, invocab = preprocess(readlines(file), vsize)
 end
 
-open("data/latin_bible.txt") do file
+open("data/short_latin_bible.txt") do file
     global outsents, outvocab
     outsents, outvocab = preprocess(readlines(file), vsize)
 end
@@ -27,32 +27,27 @@ end
 indict = builddict(invocab)
 outdict = builddict(outvocab)
 # Vocab + (pad, unk, sos, eos)
-vsize = vsize + 4
+insize = size(invocab, 1) + 4
+outsize = size(outvocab, 1) + 4
 
 # Batch sentences
-inbatch = batchpipe(insents, indict, seqlen, batchsize)
-outbatch = batchpipe(outsents, outdict, seqlen, batchsize)
-
-# Embed
-inembed = embed(vsize, hiddensize)
-outembed = embed(vsize, hiddensize)
-
-# Get feature vectors
-Xs = lookup(inembed, inbatch)
-Ys = lookup(outembed, outbatch)
+Xs = batchpipe(insents, indict, seqlen, batchsize)
+Ys = batchpipe(outsents, outdict, seqlen, batchsize)
 
 encoder = Chain(
+    Embedding(insize, hiddensize),
     Dense(hiddensize, hiddensize),
-    LSTM(hiddensize, hiddensize)
-)
-
-decoder = Chain(
     LSTM(hiddensize, hiddensize),
-    Dense(hiddensize, vsize),
-    softmax
+    Dense(hiddensize, outsize),
+    softmax,
+    func,
+    println
 )
 
-m = gpu(Chain(encoder, decoder))
+func(x) = map(y -> size(y), x)
+
+
+m = gpu(encoder)
 
 opt = ADAM(params(m), 0.01)
 tx, ty = (gpu.(Xs), gpu.(Ys))
@@ -66,4 +61,5 @@ end
 
 Flux.train!(loss, zip(Xs, Ys), opt,
             cb = throttle(evalcb, 30))
+
 
