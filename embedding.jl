@@ -34,5 +34,3 @@ Convert array of CartesianIndex to array of integer indices:
     returns: `batch size` :: Array{Int}
 """
 convertcartesian(cartarr) = last.(map(x -> x.I, cartarr))
-
-

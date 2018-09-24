@@ -1,6 +1,6 @@
 using Flux
-using Flux: chunk, batchseq, frequencies
-using Base.Iterators: flatten
+using Flux: batchseq, frequencies
+using Base.Iterators: flatten, partition
 
 padidx = 1
 sosidx = 2
@@ -22,11 +22,6 @@ delimit(line) = [sosidx, line..., eosidx]
 Return `vsize` tokens in vocabulary.
 """
 getvocab(tokens, vsize) = ["<p>", "<s>", "<\\s>", "<unk>", truncvocab(tokens, vsize)...]
-
-"""
-Converts batch vectors from Float64 to Int32
-"""
-toint32!(arr) = convert(Array{Array{Int32}}, arr)
 
 """
 Limit vocab to the top `vsize` occuring tokens.
@@ -81,13 +76,18 @@ function pad(xs, maxlen)
 end
 
 """
+Batch vectors into chunks size `bsize`.
+    -> Pad batches with a vector `p`
+"""
+batches(xs, p, bsize) = [rpad(collect(b), bsize, p) for b in partition(xs, bsize)]
+
+"""
 Batching pipeline.
     -> Index lines and split into evenly-sized batches
 """
-function batchpipe(sents, dict, seqlen, batchsize)
-    stopvect = ones(seqlen)
+function batchpipe(sents, dict, seqlen, bsize)
+    stopvect = ones(Int, seqlen)
     # index and pad vectors
     vects = vectorise(sents, dict, seqlen)
-    # batch and pad with `stopvect`
-    return toint32!(batchseq(chunk(vects, batchsize), stopvect))
+    return batches(vects, stopvect, bsize)
 end
